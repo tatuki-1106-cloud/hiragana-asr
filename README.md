@@ -13,7 +13,7 @@ wav2vec2-large + Dual CTC (InterCTC for phonemes, CR-CTC for kana). 315M paramet
 
 ## Model
 
-Available on HuggingFace: [nyosegawa/japanese-wav2vec2-large-hiragana-ctc](https://huggingface.co/nyosegawa/japanese-wav2vec2-large-hiragana-ctc)
+Available on HuggingFace: [sakasegawa/japanese-wav2vec2-large-hiragana-ctc](https://huggingface.co/sakasegawa/japanese-wav2vec2-large-hiragana-ctc) / [Spaces Demo](https://huggingface.co/spaces/sakasegawa/hiragana-asr)
 
 | Model | Data | JSUT KER | JVS KER | ReazonSpeech KER |
 |-------|------|:--------:|:-------:|:----------------:|
