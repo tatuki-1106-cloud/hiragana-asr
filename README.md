@@ -77,6 +77,10 @@ uv run python scripts/02_evaluate.py --checkpoint models/checkpoints/best.pt --d
 
 Detailed write-up (in Japanese): [ひらがなASRを作った話](https://nyosegawa.github.io/posts/hiragana-asr/)
 
+## Additional Docs
+
+- [Transformer の基本を知っている人向け hiragana-asr 解説](docs/transformer-project-overview.md)
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
