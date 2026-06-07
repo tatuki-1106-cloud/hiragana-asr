@@ -15,6 +15,7 @@ import sys
 import time
 from pathlib import Path
 
+import librosa
 import torch
 import torchaudio
 from transformers import Wav2Vec2FeatureExtractor
@@ -74,6 +75,37 @@ def swd_decode(logits: torch.Tensor, window: int = 1) -> torch.Tensor:
     return pred_ids
 
 
+def load_audio(audio_path: Path) -> tuple[torch.Tensor, int]:
+    """Load audio with a fallback that avoids torchaudio codec failures.
+
+    torchaudio is tried first because it is already used elsewhere in the
+    project, but on Windows it may fail when TorchCodec/FFmpeg DLLs are not
+    available. librosa is the fallback because it can decode WAV and, once
+    ffmpeg is on PATH, MP3 as well.
+    """
+    try:
+        waveform, sr = torchaudio.load(str(audio_path))
+        return waveform, sr
+    except Exception as exc:
+        log.warning(
+            "torchaudio.load failed for %s (%s); falling back to librosa.",
+            audio_path,
+            exc,
+        )
+
+    audio_array, sr = librosa.load(str(audio_path), sr=16_000, mono=True)
+    waveform = torch.from_numpy(audio_array).unsqueeze(0)
+    return waveform, sr
+
+
+def load_feature_extractor(pretrained: str) -> Wav2Vec2FeatureExtractor:
+    """Load the processor from cache first, then fall back to network fetch."""
+    try:
+        return Wav2Vec2FeatureExtractor.from_pretrained(pretrained, local_files_only=True)
+    except Exception:
+        return Wav2Vec2FeatureExtractor.from_pretrained(pretrained)
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Kana ASR inference with SWD")
     p.add_argument("--audio", required=True, type=Path, help="Audio file path")
@@ -106,23 +138,13 @@ def main():
     model.to(device)
     model.eval()
 
-    feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(args.pretrained)
+    feature_extractor = load_feature_extractor(args.pretrained)
     kana_vocab = KanaVocab()
     phoneme_vocab = PhonemeVocab()
 
     # Load audio
     log.info(f"Loading audio: {args.audio}")
-    waveform, sr = torchaudio.load(str(args.audio))
-
-    # Resample to 16kHz if needed
-    if sr != 16_000:
-        resampler = torchaudio.transforms.Resample(sr, 16_000)
-        waveform = resampler(waveform)
-        sr = 16_000
-
-    # Mono
-    if waveform.shape[0] > 1:
-        waveform = waveform.mean(dim=0, keepdim=True)
+    waveform, sr = load_audio(args.audio)
 
     audio_array = waveform.squeeze(0).numpy()
     duration = len(audio_array) / sr
