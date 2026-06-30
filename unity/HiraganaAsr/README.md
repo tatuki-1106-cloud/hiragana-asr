@@ -64,7 +64,10 @@ If it fails to import/run, see *Troubleshooting* below.
 
 1. Add **`RealtimeAsrController`** to a GameObject.
 2. Assign the `ModelAsset` and `kana_vocab.json`.
-3. (Optional) hook `onUtteranceFinalized (string)` to a UI Text to display lines.
+3. (Optional) hook `onUtteranceFinalized (string)` to a UI Text to display
+   finalized lines, and `onPreviewUpdated (string)` to a second Text for the
+   provisional live preview (it rewrites itself as you speak; prefixed `…` when the
+   preview window is clipped). Toggle the preview off with `Enable Preview`.
 4. Press Play and speak. Finalized hiragana lines are logged and raised as events.
 
 Key inspector settings:

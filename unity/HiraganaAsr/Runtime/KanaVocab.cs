@@ -38,6 +38,11 @@ namespace HiraganaAsr
             if (dto == null || dto.id_to_token == null || dto.id_to_token.Length == 0)
                 throw new ArgumentException("kana_vocab.json is missing 'id_to_token'.");
 
+            if (dto.blank_index < 0 || dto.blank_index >= dto.id_to_token.Length)
+                throw new ArgumentException(
+                    $"kana_vocab.json blank_index {dto.blank_index} is out of range " +
+                    $"for {dto.id_to_token.Length} tokens.");
+
             return new KanaVocab(dto.blank_index, dto.id_to_token);
         }
 
