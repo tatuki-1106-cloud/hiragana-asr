@@ -35,6 +35,22 @@ uv run python scripts/03_infer.py --audio your_audio.wav
 uv run python scripts/realtime_asr.py
 ```
 
+## Unity (on-device, ONNX + Sentis)
+
+Run the real-time hiragana ASR inside Unity with [Unity Sentis](https://docs.unity3d.com/Packages/com.unity.sentis@2.1/manual/index.html):
+
+```bash
+# Export the model to ONNX (+ vocab + parity fixture)
+uv pip install onnx onnxruntime
+uv run python scripts/export_onnx.py --model medium --fixture-audio data/test.wav
+```
+
+Then copy `unity/HiraganaAsr/` into your Unity project's `Assets/`, import the
+`.onnx`, and add the `RealtimeAsrController` component. The exported graph takes a
+raw 16 kHz waveform (normalization baked in); VAD, resampling and CTC decoding are
+re-implemented in C#. See [`unity/HiraganaAsr/README.md`](unity/HiraganaAsr/README.md)
+and [`docs/unity-integration.md`](docs/unity-integration.md).
+
 ## Architecture
 
 ```
