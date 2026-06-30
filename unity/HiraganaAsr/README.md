@@ -90,12 +90,17 @@ Key inspector settings:
 
 ## Troubleshooting
 
-- **A layer/operator is unsupported by the backend** — try a different
-  `--opset` (e.g. `--opset 15`) when exporting, switch `Backend` to `CPU`, and
-  check the model's `*.ops.json` against the
-  [Sentis supported operators](https://docs.unity3d.com/Packages/com.unity.sentis@2.1/manual/supported-operators.html).
-  The default export uses **eager attention** specifically to avoid `IsNaN`/
-  `Where` ops that some Sentis versions reject.
+- **A layer/operator is unsupported by the backend** — every op in the default
+  export was verified against Inference Engine 2.2's supported-operators table (see
+  the matrix in [`docs/unity-integration.md`](../../docs/unity-integration.md)), so a
+  fresh medium export should import cleanly. If you re-export (different model, opset
+  or attention), diff the model's `*.ops.json` against the
+  [Inference Engine supported operators](https://docs.unity3d.com/Packages/com.unity.ai.inference@2.2/manual/supported-operators.html)
+  and its *Unsupported operators* list — watch for `GroupNormalization` reappearing.
+  Mitigations: try a different `--opset` (e.g. `--opset 15`), switch `Backend` to
+  `CPU`. The default export uses **eager attention** specifically to avoid `IsNaN`/
+  `Where` ops that some Sentis versions reject. On **com.unity.sentis 1.x** the
+  normalization/`Erf` coverage differs — prefer `com.unity.ai.inference` (Sentis 2.1+).
 - **First inference is slow / hitches** — Sentis compiles shaders and reallocates
   on the first run and on each new input length. Warm up at startup, and consider
   a fixed-length export (`--fixed-length 6.0`) to keep one shape.

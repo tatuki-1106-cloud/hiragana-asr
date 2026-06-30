@@ -51,16 +51,53 @@ Important design choices:
 
 ### ONNX operators (medium, eager, opset 17)
 
-The graph uses only standard ops; the ones worth checking against your Sentis
-version's [supported operators](https://docs.unity3d.com/Packages/com.unity.sentis@2.1/manual/supported-operators.html):
+Every op produced by the default export was cross-checked, one by one, against the
+Inference Engine 2.2 [supported operators](https://docs.unity3d.com/Packages/com.unity.ai.inference@2.2/manual/supported-operators.html)
+table (and its **Unsupported operators** list). All 27 op types are supported; none
+appear in the unsupported list. The full per-export count is written to
+`models/onnx/<name>.ops.json`.
 
-`Conv`, `InstanceNormalization` (feature-extractor group norm), `LayerNormalization`,
-`MatMul`, `Softmax`, `Erf` (GELU), `Add/Mul/Sub/Div`, `ReduceMean`, `Gather`,
-`Transpose`, `Reshape`, `Concat`, `Slice`, `Range`, `Where` (×2), `Equal`,
-`GreaterOrEqual`, `ConstantOfShape`.
+| ONNX op (count) | wav2vec2 source | Inference Engine 2.2 |
+|---|---|---|
+| `Conv` (8) | feature-extractor Conv1d ×7 + conv positional embedding | ✅ 1D/2D/3D |
+| `InstanceNormalization` (1) | feature-extractor **group norm** (see note) | ✅ |
+| `LayerNormalization` (50) | per-layer layer norm | ✅ |
+| `Erf` (32) | GELU activation | ✅ |
+| `MatMul` (194) | attention / projections | ✅ |
+| `Softmax` (24) | attention weights | ✅ |
+| `Where` (2), `Equal` (1), `GreaterOrEqual` (1) | attention mask / range guards | ✅ (`Where`→`Select`) |
+| `Add` `Mul` `Sub` `Div` `Sqrt` `ReduceMean` | residuals, baked normalization, GELU | ✅ |
+| `Gather` `Transpose` `Reshape` `Concat` `Slice` `Unsqueeze` `Expand` `Shape` `Range` `ConstantOfShape` `Cast` `Constant` | shape / indexing plumbing | ✅ |
 
-The full per-export list is written to `models/onnx/<name>.ops.json`. If Sentis
-rejects an op, try `--opset 15` (decomposes some fused ops) or switch the backend.
+> **Why no `GroupNormalization`.** This is the one op to worry about: Inference
+> Engine lists `GroupNormalization` (and `MeanVarianceNormalization`,
+> `LpNormalization`) as **unsupported**. HuggingFace wav2vec2's
+> `feat_extract_norm="group"` layer is defined as `nn.GroupNorm(dim, dim)` —
+> `num_groups == num_channels` — which is mathematically per-channel (instance)
+> normalization, so PyTorch's ONNX exporter emits it as `InstanceNormalization`,
+> which **is** supported. The risk is avoided at export time, not worked around.
+
+Other ops that wav2vec2 variants can produce are *not* present here and would be a
+problem: `GroupNormalization`, `MeanVarianceNormalization`, RNN/GRU/`LSTM` (GPUPixel),
+quantization ops (`QuantizeLinear`/`DequantizeLinear`), and `IsNaN`/`IsInf` (NaNs/Infs
+are unsupported on `GPUCompute`/`GPUPixel`). Eager attention is what removes the
+`IsNaN` guards that SDPA would otherwise emit.
+
+**Verifying a re-export (e.g. the large preset).** Op coverage can change if you
+swap the model, attention impl, or opset, so after any re-export:
+
+1. Open `models/onnx/<name>.ops.json` and diff its keys against the table above.
+2. Confirm none of the keys appear in Inference Engine's *Unsupported operators*
+   list. Pay special attention to `GroupNormalization` reappearing — if it does, the
+   source model uses `num_groups < num_channels` and needs a different normalization
+   handling.
+3. Run `Samples/SentisSmokeTest.cs`: an unsupported op surfaces as an import/compile
+   error in the Console, so a clean run is the ground-truth confirmation.
+
+If a future Sentis/Inference Engine version *does* reject an op, try `--opset 15`
+(decomposes some fused ops) or switch the backend. Note that on **com.unity.sentis 1.x**
+the `InstanceNormalization` / `Erf` / `LayerNormalization` coverage differs; use
+`com.unity.ai.inference` (or Sentis 2.1+) for the matrix above.
 
 ## Parity guarantees
 
